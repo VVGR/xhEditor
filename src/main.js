@@ -135,7 +135,12 @@
 			});
 			arrToolsHtml.push('<span class="xheGEnd"/><br />');
 
-			_jText.after($('<input type="text" id="'+idFixFFCursor+'" style="position:absolute;display:none;" /><span id="'+idContainer+'" class="xhe_'+settings.skin+'" style="display:none"><table cellspacing="0" cellpadding="0" class="xheLayout" style="'+(editorWidth!='0px'?'width:'+editorWidth+';':'')+'height:'+editorHeight+'px;" role="presentation"><tr><td id="'+idTools+'" class="xheTool" unselectable="on" style="height:1px;" role="presentation"></td></tr><tr><td id="'+idIframeArea+'" class="xheIframeArea" role="presentation"><iframe frameborder="0" id="'+idIframe+'" src="javascript:;" style="width:100%;"></iframe></td></tr></table></span>'));
+			_jText.after($('<input type="text" id="'+idFixFFCursor+'" style="position:absolute;display:none;" />' +
+                '<span id="'+idContainer+'" class="xhe_'+settings.skin+'" style="display:none">' +
+                '<table cellspacing="0" cellpadding="0" class="xheLayout" style="'+(editorWidth!='0px'?'width:'+editorWidth+';':'')+'height:'+editorHeight+'px;" role="presentation">' +
+                '<tr><td id="'+idTools+'" class="xheTool" unselectable="on" style="height:1px;" role="presentation"></td></tr>' +
+                '<tr><td id="'+idIframeArea+'" class="xheIframeArea" role="presentation"><iframe frameborder="0" id="'+idIframe+'" src="javascript:void(function(){document.open();document.domain=\''+ document.domain + '\';document.close();}());" style="width:100%;"></iframe></td></tr>' +
+                '</table></span>'));
 			_jTools=$('#'+idTools);_jArea=$('#'+idIframeArea);
 
 			headHTML='<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><link rel="stylesheet" href="'+skinPath+'iframe.css"/>';
@@ -153,216 +158,226 @@
 			var iframeHTML='<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head>'+headHTML+'<title>{#defaultReadTip} '+(settings.readTip?settings.readTip:'')+'</title>';
 			if(editorBackground)iframeHTML+='<style>html{background:'+editorBackground+';}</style>';
 			iframeHTML+='</head><body spellcheck="0" class="editMode'+bodyClass+'"></body></html>';
-			_this.win=_win=$('#'+idIframe)[0].contentWindow;
-			_jWin=$(_win);
-			try{
-				this.doc=_doc = _win.document;_jDoc=$(_doc);
-				_doc.open();
-				_doc.write(getLang(iframeHTML));
-				_doc.close();
-				if(isIE)_doc.body.contentEditable='true';
-				else _doc.designMode = 'On';
-			}catch(e){}
-			setTimeout(setOpts,300);
-			_this.setSource();
-			_win.setInterval=null;//针对jquery 1.3无法操作iframe window问题的hack
+            var lastTime = +new Date();
+            setTimeout(function (){
+                var time = +new Date();
+                if (time - lastTime > 2000) {
+                    return;
+                }
+                try{
+                    _this.win=_win=$('#'+idIframe)[0].contentWindow;
+                    _jWin=$(_win);
+                    this.doc=_doc = _win.document;_jDoc=$(_doc);
+                    _doc.open();
+                    _doc.write(getLang(iframeHTML));
+                    _doc.close();
+                    if(isIE)_doc.body.contentEditable='true';
+                    else _doc.designMode = 'On';
+                }catch(e){
+                    setTimeout(arguments.callee);
+                    return;
+                }
+                setTimeout(setOpts,300);
+                _this.setSource();
+                _win.setInterval=null;//针对jquery 1.3无法操作iframe window问题的hack
 
-			//添加工具栏
-			_jTools.append(getLang(arrToolsHtml.join(''))).bind('mousedown contextmenu',returnFalse).click(function(event)
-			{
-				var jButton=$(event.target).closest('a');
-				if(jButton.is('.xheEnabled'))
-				{
-					clearTimeout(timer);//取消悬停执行
-					_jTools.find('a').attr('tabindex','-1');//无障碍支持
-					ev=event;
-					_this.exec(jButton.attr('cmd'));
-				}
-				return false;
-			});
-			_jTools.find('.xheButton').hover(function(event){//鼠标悬停执行
-				var jButton=$(this),delay=settings.hoverExecDelay;
-				var tAngle=lastAngle;lastAngle=null;
-				if(delay===-1||bDisableHoverExec||!jButton.is('.xheEnabled'))return false;
-				if(tAngle&&tAngle>10)//检测误操作
-				{
-					bDisableHoverExec=true;
-					setTimeout(function(){bDisableHoverExec=false;},100);
-					return false;
-				}
-				var cmd=jButton.attr('cmd'),bHover=arrTools[cmd].h===1;
-				if(!bHover)
-				{
-					_this.hidePanel();//移到非悬停按钮上隐藏面板
-					return false;
-				}
-				if(bQuickHoverExec)delay=0;
-				if(delay>=0)timer=setTimeout(function(){
-					ev=event;
-					lastPoint={x:ev.clientX,y:ev.clientY};
-					_this.exec(cmd);
-				},delay);
-			},function(event){lastPoint=null;if(timer)clearTimeout(timer);}).mousemove(function(event){
-				if(lastPoint)
-				{
-					var diff={x:event.clientX-lastPoint.x,y:event.clientY-lastPoint.y};
-					if(Math.abs(diff.x)>1||Math.abs(diff.y)>1)
-					{
-						if(diff.x>0&&diff.y>0)
-						{
-							var tAngle=Math.round(Math.atan(diff.y/diff.x)/0.017453293);
-							if(lastAngle)lastAngle=(lastAngle+tAngle)/2
-							else lastAngle=tAngle;
-						}
-						else lastAngle=null;
-						lastPoint={x:event.clientX,y:event.clientY};
-					}
-				}
-			});
-			//初始化面板
-			_jPanel=$('#xhePanel');
-			_jShadow=$('#xheShadow');
-			_jCntLine=$('#xheCntLine');
-			if(_jPanel.length===0)
-			{
-				_jPanel=$('<div id="xhePanel"></div>').mousedown(function(ev){ev.stopPropagation()});
-				_jShadow=$('<div id="xheShadow"></div>');
-				_jCntLine=$('<div id="xheCntLine"></div>');
-				setTimeout(function(){
-					$(document.body).append(_jPanel).append(_jShadow).append(_jCntLine);
-				},10);
-			}
+                //添加工具栏
+                _jTools.append(getLang(arrToolsHtml.join(''))).bind('mousedown contextmenu',returnFalse).click(function(event)
+                {
+                    var jButton=$(event.target).closest('a');
+                    if(jButton.is('.xheEnabled'))
+                    {
+                        clearTimeout(timer);//取消悬停执行
+                        _jTools.find('a').attr('tabindex','-1');//无障碍支持
+                        ev=event;
+                        _this.exec(jButton.attr('cmd'));
+                    }
+                    return false;
+                });
+                _jTools.find('.xheButton').hover(function(event){//鼠标悬停执行
+                    var jButton=$(this),delay=settings.hoverExecDelay;
+                    var tAngle=lastAngle;lastAngle=null;
+                    if(delay===-1||bDisableHoverExec||!jButton.is('.xheEnabled'))return false;
+                    if(tAngle&&tAngle>10)//检测误操作
+                    {
+                        bDisableHoverExec=true;
+                        setTimeout(function(){bDisableHoverExec=false;},100);
+                        return false;
+                    }
+                    var cmd=jButton.attr('cmd'),bHover=arrTools[cmd].h===1;
+                    if(!bHover)
+                    {
+                        _this.hidePanel();//移到非悬停按钮上隐藏面板
+                        return false;
+                    }
+                    if(bQuickHoverExec)delay=0;
+                    if(delay>=0)timer=setTimeout(function(){
+                        ev=event;
+                        lastPoint={x:ev.clientX,y:ev.clientY};
+                        _this.exec(cmd);
+                    },delay);
+                },function(event){lastPoint=null;if(timer)clearTimeout(timer);}).mousemove(function(event){
+                    if(lastPoint)
+                    {
+                        var diff={x:event.clientX-lastPoint.x,y:event.clientY-lastPoint.y};
+                        if(Math.abs(diff.x)>1||Math.abs(diff.y)>1)
+                        {
+                            if(diff.x>0&&diff.y>0)
+                            {
+                                var tAngle=Math.round(Math.atan(diff.y/diff.x)/0.017453293);
+                                if(lastAngle)lastAngle=(lastAngle+tAngle)/2
+                                else lastAngle=tAngle;
+                            }
+                            else lastAngle=null;
+                            lastPoint={x:event.clientX,y:event.clientY};
+                        }
+                    }
+                });
+                //初始化面板
+                _jPanel=$('#xhePanel');
+                _jShadow=$('#xheShadow');
+                _jCntLine=$('#xheCntLine');
+                if(_jPanel.length===0)
+                {
+                    _jPanel=$('<div id="xhePanel"></div>').mousedown(function(ev){ev.stopPropagation()});
+                    _jShadow=$('<div id="xheShadow"></div>');
+                    _jCntLine=$('<div id="xheCntLine"></div>');
+                    setTimeout(function(){
+                        $(document.body).append(_jPanel).append(_jShadow).append(_jCntLine);
+                    },10);
+                }
 
-			//切换显示区域
-			$('#'+idContainer).show();
-			_jText.hide();
-			_jArea.css('height',editorHeight-_jTools.outerHeight());
-			if(isIE&browerVer<8)setTimeout(function(){_jArea.css('height',editorHeight-_jTools.outerHeight());},1);
+                //切换显示区域
+                $('#'+idContainer).show();
+                _jText.hide();
+                _jArea.css('height',editorHeight-_jTools.outerHeight());
+                if(isIE&browerVer<8)setTimeout(function(){_jArea.css('height',editorHeight-_jTools.outerHeight());},1);
 
-			//绑定内核事件
-			_jText.focus(_this.focus);
-			_jForm.submit(saveResult).bind('reset', loadReset);//绑定表单的提交和重置事件
-			if(settings.submitID)$('#'+settings.submitID).mousedown(saveResult);//自定义绑定submit按钮
-			$(window).bind('unload beforeunload',saveResult).bind('resize',fixFullHeight);
-			$(document).mousedown(clickCancelPanel);
-			if(!bCheckEscInit){$(document).keydown(checkEsc);bCheckEscInit=true;}
-			_jWin.focus(function(){if(settings.focus)settings.focus();}).blur(function(){if(settings.blur)settings.blur();});
-			if(isWebkit){
-				_jWin.click(fixAppleSel);
-			}
-			_jDoc.mousedown(clickCancelPanel).keydown(checkShortcuts).keypress(forcePtag).dblclick(checkDblClick).bind('mousedown click',function(ev){_jText.trigger(ev.type);});
-			if(isIE)
-			{
-				//IE控件上Backspace会导致页面后退
-				_jDoc.keydown(function(ev){var rng=_this.getRng();if(ev.which===8&&rng.item){$(rng.item(0)).remove();return false;}});
-				//修正IE拖动img大小不更新width和height属性值的问题
-				function fixResize(ev)
-				{
-					var jImg=$(ev.target),v;
-					if(v=jImg.css('width'))jImg.css('width','').attr('width',v.replace(/[^0-9%]+/g, ''));
-					if(v=jImg.css('height'))jImg.css('height','').attr('height',v.replace(/[^0-9%]+/g, ''));
-				}
-				_jDoc.bind('controlselect',function(ev){
-					ev=ev.target;if(!$.nodeName(ev,'IMG'))return;
-					$(ev).unbind('resizeend',fixResize).bind('resizeend',fixResize);
-				});
-			}
-			//无障碍支持
-			_jDoc.keydown(function(e){
-				var which=e.which;
-				if(e.altKey&&which>=49&&which<=57){
-					_jTools.find('a').attr('tabindex','0');
-					_jTools.find('.xheGStart').eq(which-49).next().find('a').focus();
-					_doc.title='\uFEFF\uFEFF';
-					return false;
-				}
-			}).click(function(){
-				_jTools.find('a').attr('tabindex','-1');
-			});
-			_jTools.keydown(function(e){
-				var which=e.which;
-				if(which==27){
-					_jTools.find('a').attr('tabindex','-1');
-					_this.focus();
-				}
-				else if(e.altKey&&which>=49&&which<=57){
-					_jTools.find('.xheGStart').eq(which-49).next().find('a').focus();
-					return false;
-				}
-			});
+                //绑定内核事件
+                _jText.focus(_this.focus);
+                _jForm.submit(saveResult).bind('reset', loadReset);//绑定表单的提交和重置事件
+                if(settings.submitID)$('#'+settings.submitID).mousedown(saveResult);//自定义绑定submit按钮
+                $(window).bind('unload beforeunload',saveResult).bind('resize',fixFullHeight);
+                $(document).mousedown(clickCancelPanel);
+                if(!bCheckEscInit){$(document).keydown(checkEsc);bCheckEscInit=true;}
+                _jWin.focus(function(){if(settings.focus)settings.focus();}).blur(function(){if(settings.blur)settings.blur();});
+                if(isWebkit){
+                    _jWin.click(fixAppleSel);
+                }
+                _jDoc.mousedown(clickCancelPanel).keydown(checkShortcuts).keypress(forcePtag).dblclick(checkDblClick).bind('mousedown click',function(ev){_jText.trigger(ev.type);});
+                if(isIE)
+                {
+                    //IE控件上Backspace会导致页面后退
+                    _jDoc.keydown(function(ev){var rng=_this.getRng();if(ev.which===8&&rng.item){$(rng.item(0)).remove();return false;}});
+                    //修正IE拖动img大小不更新width和height属性值的问题
+                    function fixResize(ev)
+                    {
+                        var jImg=$(ev.target),v;
+                        if(v=jImg.css('width'))jImg.css('width','').attr('width',v.replace(/[^0-9%]+/g, ''));
+                        if(v=jImg.css('height'))jImg.css('height','').attr('height',v.replace(/[^0-9%]+/g, ''));
+                    }
+                    _jDoc.bind('controlselect',function(ev){
+                        ev=ev.target;if(!$.nodeName(ev,'IMG'))return;
+                        $(ev).unbind('resizeend',fixResize).bind('resizeend',fixResize);
+                    });
+                }
+                //无障碍支持
+                _jDoc.keydown(function(e){
+                    var which=e.which;
+                    if(e.altKey&&which>=49&&which<=57){
+                        _jTools.find('a').attr('tabindex','0');
+                        _jTools.find('.xheGStart').eq(which-49).next().find('a').focus();
+                        _doc.title='\uFEFF\uFEFF';
+                        return false;
+                    }
+                }).click(function(){
+                    _jTools.find('a').attr('tabindex','-1');
+                });
+                _jTools.keydown(function(e){
+                    var which=e.which;
+                    if(which==27){
+                        _jTools.find('a').attr('tabindex','-1');
+                        _this.focus();
+                    }
+                    else if(e.altKey&&which>=49&&which<=57){
+                        _jTools.find('.xheGStart').eq(which-49).next().find('a').focus();
+                        return false;
+                    }
+                });
 
-			var jBody=$(_doc.documentElement);
-			//自动清理粘贴内容
-			if(isOpera)jBody.bind('keydown',function(e){if(e.ctrlKey&&e.which===86)cleanPaste();});
-			else jBody.bind(isIE?'beforepaste':'paste',cleanPaste);
+                var jBody=$(_doc.documentElement);
+                //自动清理粘贴内容
+                if(isOpera)jBody.bind('keydown',function(e){if(e.ctrlKey&&e.which===86)cleanPaste();});
+                else jBody.bind(isIE?'beforepaste':'paste',cleanPaste);
 
-			//禁用编辑区域的浏览器默认右键菜单
-			if(settings.disableContextmenu)jBody.bind('contextmenu',returnFalse);
-			//HTML5编辑区域直接拖放上传
-			if(settings.html5Upload)jBody.bind('dragenter dragover',function(ev){var types;if((types=ev.originalEvent.dataTransfer.types)&&$.inArray('Files', types)!==-1)return false;}).bind('drop',function(ev){
-				var dataTransfer=ev.originalEvent.dataTransfer,fileList;
-				if(dataTransfer&&(fileList=dataTransfer.files)&&fileList.length>0){
-					var i,cmd,arrCmd=['Link','Img','Flash','Media'],arrExt=[],strExt;
-					for(i in arrCmd){
-						cmd=arrCmd[i];
-						if(settings['up'+cmd+'Url']&&settings['up'+cmd+'Url'].match(/^[^!].*/i))arrExt.push(cmd+':,'+settings['up'+cmd+'Ext']);//允许上传
-					}
-					if(arrExt.length===0)return false;//禁止上传
-					else strExt=arrExt.join(',');
-					function getCmd(fileList){
-						var match,fileExt,cmd;
-						for(i=0;i<fileList.length;i++){
-							fileExt=fileList[i].name.replace(/.+\./,'');
-							if(match=strExt.match(new RegExp('(\\w+):[^:]*,'+fileExt+'(?:,|$)','i'))){
-								if(!cmd)cmd=match[1];
-								else if(cmd!==match[1])return 2;
-							}
-							else return 1;
-						}
-						return cmd;
-					}
-					cmd=getCmd(fileList);
-					if(cmd===1)alert(getLang('upload.extLimit',strExt.replace(/\w+:,/g,'')));
-					else if(cmd===2)alert(getLang('upload.typeLimit'));
-					else if(cmd){
-						_this.startUpload(fileList,settings['up'+cmd+'Url'],'*',function(arrMsg){
-							var arrUrl=[],msg,onUpload=settings.onUpload;
-							if(onUpload)onUpload(arrMsg);//用户上传回调
-							for(var i=0,c=arrMsg.length;i<c;i++){
-								msg=arrMsg[i];
-								url=is(msg,'string')?msg:msg.url;
-								if(url.substr(0,1)==='!')url=url.substr(1);
-								arrUrl.push(url);
-							}
-							_this.exec(cmd);
-							$('#xhe'+cmd+'Url').val(arrUrl.join(' '));
-							$('#xheSave').click();
-						});
-					}
-					return false;
-				}
-			});
+                //禁用编辑区域的浏览器默认右键菜单
+                if(settings.disableContextmenu)jBody.bind('contextmenu',returnFalse);
+                //HTML5编辑区域直接拖放上传
+                if(settings.html5Upload)jBody.bind('dragenter dragover',function(ev){var types;if((types=ev.originalEvent.dataTransfer.types)&&$.inArray('Files', types)!==-1)return false;}).bind('drop',function(ev){
+                    var dataTransfer=ev.originalEvent.dataTransfer,fileList;
+                    if(dataTransfer&&(fileList=dataTransfer.files)&&fileList.length>0){
+                        var i,cmd,arrCmd=['Link','Img','Flash','Media'],arrExt=[],strExt;
+                        for(i in arrCmd){
+                            cmd=arrCmd[i];
+                            if(settings['up'+cmd+'Url']&&settings['up'+cmd+'Url'].match(/^[^!].*/i))arrExt.push(cmd+':,'+settings['up'+cmd+'Ext']);//允许上传
+                        }
+                        if(arrExt.length===0)return false;//禁止上传
+                        else strExt=arrExt.join(',');
+                        function getCmd(fileList){
+                            var match,fileExt,cmd;
+                            for(i=0;i<fileList.length;i++){
+                                fileExt=fileList[i].name.replace(/.+\./,'');
+                                if(match=strExt.match(new RegExp('(\\w+):[^:]*,'+fileExt+'(?:,|$)','i'))){
+                                    if(!cmd)cmd=match[1];
+                                    else if(cmd!==match[1])return 2;
+                                }
+                                else return 1;
+                            }
+                            return cmd;
+                        }
+                        cmd=getCmd(fileList);
+                        if(cmd===1)alert(getLang('upload.extLimit',strExt.replace(/\w+:,/g,'')));
+                        else if(cmd===2)alert(getLang('upload.typeLimit'));
+                        else if(cmd){
+                            _this.startUpload(fileList,settings['up'+cmd+'Url'],'*',function(arrMsg){
+                                var arrUrl=[],msg,onUpload=settings.onUpload;
+                                if(onUpload)onUpload(arrMsg);//用户上传回调
+                                for(var i=0,c=arrMsg.length;i<c;i++){
+                                    msg=arrMsg[i];
+                                    url=is(msg,'string')?msg:msg.url;
+                                    if(url.substr(0,1)==='!')url=url.substr(1);
+                                    arrUrl.push(url);
+                                }
+                                _this.exec(cmd);
+                                $('#xhe'+cmd+'Url').val(arrUrl.join(' '));
+                                $('#xheSave').click();
+                            });
+                        }
+                        return false;
+                    }
+                });
 
-			//添加用户快捷键
-			var shortcuts=settings.shortcuts;
-			if(shortcuts)$.each(shortcuts,function(key,func){_this.addShortcuts(key,func);});
+                //添加用户快捷键
+                var shortcuts=settings.shortcuts;
+                if(shortcuts)$.each(shortcuts,function(key,func){_this.addShortcuts(key,func);});
 
-			xCount++;
-			bInit=true;
+                xCount++;
+                bInit=true;
 
-			if(settings.fullscreen)_this.toggleFullscreen();
-			else if(settings.sourceMode)setTimeout(_this.toggleSource,20);
+                if(settings.fullscreen)_this.toggleFullscreen();
+                else if(settings.sourceMode)setTimeout(_this.toggleSource,20);
 
-			//初始化所有插件
-			var plugins = settings.plugins;
-			if(plugins){
-				$.each(plugins, function(n,v){
-					var init = v.i;
-					if(init !== undefined){
-						init(_this);
-					}
-				});
-			}
+                //初始化所有插件
+                var plugins = settings.plugins;
+                if(plugins){
+                    $.each(plugins, function(n,v){
+                        var init = v.i;
+                        if(init !== undefined){
+                            init(_this);
+                        }
+                    });
+                }
+            });
 			return true;
 		}
 		this.remove=function()
