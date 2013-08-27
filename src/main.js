@@ -1778,10 +1778,9 @@
 				};
 				else onProgress(-1);//不支持进度
 				xhr.open("POST", toUrl);
-				xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-				xhr.setRequestHeader('Content-Disposition', 'attachment; name="'+encodeURIComponent(inputname)+'"; filename="'+encodeURIComponent(fromfile.name)+'"');
-				if(xhr.sendAsBinary&&fromfile.getAsBinary)xhr.sendAsBinary(fromfile.getAsBinary());
-				else xhr.send(fromfile);
+                var formData = new FormData();
+                formData.append("filedata", fromfile);
+                xhr.send(formData);
 			}
 			function returnProgress(loaded){
 				if(onProgress)onProgress({'loaded':allLoaded+loaded,'total':allSize});

@@ -2,7 +2,7 @@
   "name": "xheditor",
   "title": "xhEditor",
   "description": "xhEditor是一个基于jQuery开发的简单迷你并且高效的在线可视化HTML编辑器，基于网络访问并且兼容IE 6.0+,Firefox 3.0+,Opera 9.6+,Chrome 1.0+,Safari 3.22+。",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "author": "yanis.wang@gmail.com",
   "homepage": "http://xheditor.com/",
   "repository": {
