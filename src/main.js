@@ -2062,9 +2062,14 @@
 		function saveResult(){_this.getSource();};
 
         var _nextUploadImgId = 0;
+        var _extMap = {
+            'image/png': '.png',
+            'image/jpeg': '.jpeg'
+        };
         function pasteImage(blob) {
             var reader = new FileReader();
             var imageId = 'xhe_uploadimg' + (_nextUploadImgId++);
+            var fakeName = 'fake' + _extMap[blob.type];
             reader.onload=function(){
                 var sHtml='<img id="' + imageId + '" src="'+event.target.result+'">';
                 _this.pasteHTML(sHtml);
