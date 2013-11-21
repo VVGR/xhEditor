@@ -167,7 +167,7 @@
                 try{
                     _this.win=_win=$('#'+idIframe)[0].contentWindow;
                     _jWin=$(_win);
-                    this.doc=_doc = _win.document;_jDoc=$(_doc);
+                    _this.doc=_doc = _win.document;_jDoc=$(_doc);
                     _doc.open();
                     _doc.write(getLang(iframeHTML));
                     _doc.close();
@@ -2060,16 +2060,35 @@
 		}
 		function loadReset(){setTimeout(_this.setSource,10);}
 		function saveResult(){_this.getSource();};
+
+        var _nextUploadImgId = 0;
+        function pasteImage(blob) {
+            var reader = new FileReader();
+            var imageId = 'xhe_uploadimg' + (_nextUploadImgId++);
+            reader.onload=function(){
+                var sHtml='<img id="' + imageId + '" src="'+event.target.result+'">';
+                _this.pasteHTML(sHtml);
+                var formData = new FormData();
+                formData.append("filedata", blob);
+                $.ajax({
+                    type: 'POST',
+                    url: settings.upImgUrl,
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json'
+                }).then(function (data) {
+                        if (!data.err) {
+                            xheAttr($('#' + imageId, _this.doc), 'src', data.msg);
+                        }
+                    });
+            };
+            reader.readAsDataURL(blob);
+        }
 		function cleanPaste(ev){
 			var clipboardData,items,item;//for chrome
 			if(ev&&(clipboardData=ev.originalEvent.clipboardData)&&(items=clipboardData.items)&&(item=items[0])&&item.kind=='file'&&item.type.match(/^image\//i)){
-				var blob = item.getAsFile(),reader = new FileReader();
-				reader.onload=function(){
-					var sHtml='<img src="'+event.target.result+'">';
-					sHtml=replaceRemoteImg(sHtml);
-					_this.pasteHTML(sHtml);
-				}
-				reader.readAsDataURL(blob);
+                pasteImage(item.getAsFile());
 				return false;
 			}
 
