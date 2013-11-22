@@ -2068,7 +2068,7 @@
         };
         function pasteImage(blob) {
             var reader = new FileReader();
-            var imageId = 'xhe_uploadimg' + (_nextUploadImgId++);
+            var imageId = '_xhe_upimg_' + (_nextUploadImgId++);
             var fakeName = 'fake' + _extMap[blob.type];
             reader.onload=function(){
                 var sHtml='<img id="' + imageId + '" src="'+event.target.result+'">';
@@ -2083,9 +2083,25 @@
                     contentType: false,
                     dataType: 'json'
                 }).then(function (data) {
-                        if (!data.err) {
+                        if (data.err) return;
+                        var retryCount = 3;
+                        var timeout = 100;
+                        var img = new Image();
+                        img.onload = function () {
                             xheAttr($('#' + imageId, _this.doc), 'src', data.msg);
+                        };
+                        img.onerror = function () {
+                            if (retryCount > 0) {
+                                setTimeout(tryReplace, timeout);
+                                timeout *= 2;
+                                retryCount--;
+                            }
+                        };
+                        function tryReplace() {
+                            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                            img.src = data.msg;
                         }
+                        setTimeout(tryReplace, 0);
                     });
             };
             reader.readAsDataURL(blob);
