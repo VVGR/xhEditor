@@ -2074,7 +2074,7 @@
                 var sHtml='<img id="' + imageId + '" src="'+event.target.result+'">';
                 _this.pasteHTML(sHtml);
                 var formData = new FormData();
-                formData.append("filedata", blob);
+                formData.append("filedata", blob, fakeName);
                 $.ajax({
                     type: 'POST',
                     url: settings.upImgUrl,
